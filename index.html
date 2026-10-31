@@ -557,6 +557,52 @@
     }
     .mute-btn:active { transform: scale(0.96); }
 
+    .hud-actions {
+      position: absolute;
+      z-index: 24;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: none;
+      justify-content: center;
+      gap: 10px;
+      pointer-events: none;
+      padding: 0 16px calc(var(--safe-bottom) + 14px);
+    }
+    .hud-actions.visible { display: flex; }
+    .hud-action {
+      pointer-events: auto;
+      min-height: 48px;
+      min-width: 118px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 140, 66, 0.4);
+      background: var(--panel);
+      color: var(--gold);
+      font: 800 15px/1 "Segoe UI", system-ui, -apple-system, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .hud-action:focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+    .hud-action:active { transform: translateY(1px); }
+    .hud-action.danger {
+      color: #ffb4b4;
+      border-color: rgba(255, 92, 92, 0.5);
+    }
+
+    #app.paused .entity .sprite,
+    #app.paused .entity.ghost-gold::before,
+    #app.paused .hud-pill.timer.urgent {
+      animation-play-state: paused;
+    }
+
     .end-score {
       font-size: clamp(48px, 14vw, 64px);
       font-weight: 800;
@@ -754,10 +800,10 @@
     @media (prefers-reduced-motion: reduce) {
       .star, .bat, .title-emoji, .entity .sprite, .entity.ghost-gold::before,
       #combo-banner.show, .score-pop, .spark, #app.shake, .hud-pill.timer.urgent,
-      .mute-btn:active {
+      .mute-btn:active, .hud-action:active {
         animation: none !important;
       }
-      .mute-btn:active { transform: none; }
+      .mute-btn:active, .hud-action:active { transform: none; }
       .entity.ghost-gold::before { opacity: 0.7; }
       #combo-banner.show { opacity: 1; transform: translateX(-50%) scale(1); }
     }
@@ -808,9 +854,31 @@
       <div class="hud-pill combo"><span class="label">Combo</span><span id="combo-val">×1</span></div>
       <div class="hud-pill timer"><span class="label">Time</span><span id="timer-val">60</span></div>
     </div>
+    <div id="hud-actions" class="hud-actions">
+      <button type="button" class="hud-action" id="btn-pause">Pause</button>
+      <button type="button" class="hud-action danger" id="btn-quit">Quit</button>
+    </div>
     <div id="combo-banner" aria-hidden="true"></div>
 
     <div id="playfield" class="inactive" role="application" aria-label="Ghost catching playfield"></div>
+
+    <div id="pause-screen" class="screen hidden" role="dialog" aria-labelledby="pause-title" tabindex="-1">
+      <div class="screen-scroll">
+        <div class="screen-card">
+          <div class="title-emoji" aria-hidden="true">👻</div>
+          <h1 id="pause-title">Paused</h1>
+          <p class="tagline" id="pause-copy">The clock is frozen.</p>
+          <div class="btn-stack" id="pause-actions">
+            <button type="button" class="btn" id="btn-resume">Resume</button>
+            <button type="button" class="btn btn-ghost" id="btn-pause-quit">Quit</button>
+          </div>
+          <div class="btn-stack hidden" id="quit-confirm">
+            <button type="button" class="btn" id="btn-quit-no">Keep playing</button>
+            <button type="button" class="btn btn-ghost" id="btn-quit-yes">Quit</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Start screen -->
     <div id="start-screen" class="screen" role="dialog" aria-labelledby="game-title">
@@ -901,6 +969,12 @@
 
   const playfield = document.getElementById("playfield");
   const hud = document.getElementById("hud");
+  const hudActions = document.getElementById("hud-actions");
+  const pauseScreen = document.getElementById("pause-screen");
+  const pauseTitle = document.getElementById("pause-title");
+  const pauseCopy = document.getElementById("pause-copy");
+  const pauseActions = document.getElementById("pause-actions");
+  const quitConfirm = document.getElementById("quit-confirm");
   const scoreEl = document.getElementById("score-val");
   const comboEl = document.getElementById("combo-val");
   const timerEl = document.getElementById("timer-val");
@@ -931,7 +1005,10 @@
   let entities = [];
   let nextId = 1;
   let spawnTimer = null;
-  let tickTimer = null;
+  let clockTimer = null;
+  let clockRemain = 1000;
+  let clockMark = 0;
+  let pausedAt = 0;
   let rafId = null;
   let lastTs = 0;
   let reduceMotion = false;
@@ -1051,7 +1128,7 @@
     const rect = playfield.getBoundingClientRect();
     const padX = 40;
     const padTop = 90 + (parseInt(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 0);
-    const padBot = 40;
+    const padBot = 108;
 
     const x = rand(padX, Math.max(padX + 10, rect.width - padX));
     const y = rand(padTop, Math.max(padTop + 10, rect.height - padBot));
@@ -1234,7 +1311,7 @@
       if (e.x < 36) { e.x = 36; e.driftX = Math.abs(e.driftX); }
       if (e.x > rect.width - 36) { e.x = rect.width - 36; e.driftX = -Math.abs(e.driftX); }
       if (e.y < 80) { e.y = 80; e.driftY = Math.abs(e.driftY); }
-      if (e.y > rect.height - 36) { e.y = rect.height - 36; e.driftY = -Math.abs(e.driftY); }
+      if (e.y > rect.height - 108) { e.y = rect.height - 108; e.driftY = -Math.abs(e.driftY); }
       e.el.style.left = e.x + "px";
       e.el.style.top = e.y + "px";
       // fade near end of life
@@ -1254,7 +1331,116 @@
   function scheduleSpawn() {
     if (state !== "playing") return;
     spawnEntity();
+    queueSpawn();
+  }
+
+  function queueSpawn() {
+    clearTimeout(spawnTimer);
+    if (state !== "playing") return;
     spawnTimer = setTimeout(scheduleSpawn, spawnInterval());
+  }
+
+  function startClock() {
+    clearTimeout(clockTimer);
+    const wait = clockRemain > 0 ? clockRemain : 1000;
+    clockMark = performance.now();
+    clockTimer = setTimeout(function onClock() {
+      if (state !== "playing") return;
+      timeLeft -= 1;
+      clockRemain = 1000;
+      updateHud();
+      if (timeLeft <= 0) {
+        endRound();
+        return;
+      }
+      clockMark = performance.now();
+      clockTimer = setTimeout(onClock, 1000);
+    }, wait);
+  }
+
+  function pauseClock() {
+    clearTimeout(clockTimer);
+    clockTimer = null;
+    const elapsed = performance.now() - clockMark;
+    clockRemain = Math.max(40, Math.min(1000, (clockRemain > 0 ? clockRemain : 1000) - elapsed));
+  }
+
+  function stopClock() {
+    clearTimeout(clockTimer);
+    clockTimer = null;
+    clockRemain = 1000;
+  }
+
+  function showPauseOverlay(mode) {
+    const confirming = mode === "confirm";
+    pauseTitle.textContent = confirming ? "Quit this round?" : "Paused";
+    pauseCopy.textContent = confirming
+      ? "Leave this round? Your score will not be saved."
+      : "The clock is frozen.";
+    pauseActions.classList.toggle("hidden", confirming);
+    quitConfirm.classList.toggle("hidden", !confirming);
+    pauseScreen.classList.remove("hidden");
+    const focusEl = document.getElementById(confirming ? "btn-quit-no" : "btn-resume");
+    if (focusEl) focusEl.focus({ preventScroll: true });
+  }
+
+  function pauseRound(mode) {
+    if (state !== "playing") {
+      if (state === "paused") showPauseOverlay(mode || "menu");
+      return;
+    }
+    state = "paused";
+    clearTimeout(spawnTimer);
+    spawnTimer = null;
+    pauseClock();
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+    pausedAt = performance.now();
+    playfield.classList.add("inactive");
+    app.classList.add("paused");
+    comboBanner.classList.remove("show");
+    comboBanner.textContent = "";
+    audio.pauseMusic();
+    showPauseOverlay(mode || "menu");
+  }
+
+  function resumeRound() {
+    if (state !== "paused") return;
+    const held = Math.max(0, performance.now() - pausedAt);
+    for (let i = 0; i < entities.length; i++) entities[i].born += held;
+    if (lastCatchAt) lastCatchAt += held;
+    lastTs = 0;
+    state = "playing";
+    app.classList.remove("paused");
+    pauseScreen.classList.add("hidden");
+    playfield.classList.remove("inactive");
+    audio.resumeMusic();
+    queueSpawn();
+    startClock();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function quitRound() {
+    if (state !== "playing" && state !== "paused") return;
+    state = "start";
+    clearTimeout(spawnTimer);
+    spawnTimer = null;
+    stopClock();
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+    clearEntities();
+    pendingScore = null;
+    comboBanner.classList.remove("show");
+    comboBanner.textContent = "";
+    playfield.classList.add("inactive");
+    hud.classList.remove("visible");
+    hudActions.classList.remove("visible");
+    app.classList.remove("paused");
+    pauseScreen.classList.add("hidden");
+    endScreen.classList.add("hidden");
+    boardScreen.classList.add("hidden");
+    startScreen.classList.remove("hidden");
+    audio.resumeMusic();
   }
 
   function startRound() {
@@ -1267,6 +1453,7 @@
     timeLeft = ROUND_SECONDS;
     nextId = 1;
     lastTs = 0;
+    clockRemain = 1000;
     clearEntities();
     updateHud();
 
@@ -1279,19 +1466,17 @@
     startScreen.classList.add("hidden");
     endScreen.classList.add("hidden");
     boardScreen.classList.add("hidden");
+    pauseScreen.classList.add("hidden");
+    app.classList.remove("paused");
     hud.classList.add("visible");
+    hudActions.classList.add("visible");
     playfield.classList.remove("inactive");
 
     // seed a few ghosts
     for (let i = 0; i < 4; i++) spawnEntity();
     scheduleSpawn();
 
-    tickTimer = setInterval(() => {
-      timeLeft -= 1;
-      updateHud();
-      if (timeLeft <= 0) endRound();
-    }, 1000);
-
+    startClock();
     rafId = requestAnimationFrame(tick);
   }
 
@@ -1299,10 +1484,13 @@
     if (state !== "playing") return;
     state = "end";
     clearTimeout(spawnTimer);
-    clearInterval(tickTimer);
+    stopClock();
     if (rafId) cancelAnimationFrame(rafId);
     playfield.classList.add("inactive");
     hud.classList.remove("visible");
+    hudActions.classList.remove("visible");
+    app.classList.remove("paused");
+    pauseScreen.classList.add("hidden");
     comboBanner.classList.remove("show");
     comboBanner.textContent = "";
     clearEntities();
@@ -1556,15 +1744,22 @@
 
   /* ---- Audio (Web Audio API, generated in the browser) ---- */
   const audio = (function () {
-    const MELODY = [
-      69, 72, 76, 81, 79, 76, 72, 69,
-      65, 69, 72, 76, 74, 72, 69, 65,
-      64, 67, 71, 76, 74, 71, 67, 64,
-      69, 76, 72, 69, 67, 64, 65, 69
+    /* Original spooky loop in D minor: chromatic lead, plucky bass, theremin glide. */
+    const LEAD = [
+      74, 0, 77, 0, 80, 79, 0, 76,
+      0, 73, 0, 74, 77, 0, 75, 72,
+      69, 0, 73, 0, 77, 76, 0, 73,
+      74, 0, 70, 0, 77, 0, 72, 74
     ];
-    const BASS = { 0: 45, 8: 41, 16: 40, 24: 45 };
-    const LOOP_STEPS = MELODY.length;
-    const STEP_SEC = 60 / 80 / 2;
+    const BASS = [
+      38, 0, 0, 38, 38, 0, 33, 0,
+      36, 0, 0, 36, 38, 0, 32, 0,
+      34, 0, 0, 34, 33, 0, 34, 0,
+      38, 0, 0, 37, 38, 0, 38, 0
+    ];
+    const GLIDE = { 0: [62, 68], 8: [68, 63], 16: [63, 69], 24: [61, 62] };
+    const LOOP_STEPS = LEAD.length;
+    const STEP_SEC = 60 / 108 / 2;
 
     let ctx = null;
     let master = null;
@@ -1576,10 +1771,10 @@
     let unlocked = false;
     let failed = false;
     let musicOn = false;
+    let musicSuspended = false;
     let musicTimer = null;
     let nextNoteTime = 0;
     let stepIndex = 0;
-    let resumeMusicOnShow = false;
 
     try {
       muted = localStorage.getItem(MUTE_KEY) === "1";
@@ -1604,11 +1799,11 @@
         master.connect(ctx.destination);
 
         musicBus = ctx.createGain();
-        musicBus.gain.value = 0.72;
+        musicBus.gain.value = 0.5;
         const filter = ctx.createBiquadFilter();
         filter.type = "lowpass";
-        filter.frequency.value = 2200;
-        filter.Q.value = 0.6;
+        filter.frequency.value = 3400;
+        filter.Q.value = 0.4;
         musicBus.connect(filter);
         filter.connect(master);
 
@@ -1635,14 +1830,51 @@
         osc.frequency.exponentialRampToValueAtTime(Math.max(1, spec.to), t + dur);
       }
       const peak = Math.max(0.0002, spec.gain);
-      const attack = Math.min(0.03, dur * 0.3);
+      const shape = spec.shape || "hit";
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(peak, t + attack);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(dur, attack + 0.02));
+      if (shape === "swell") {
+        gain.gain.exponentialRampToValueAtTime(peak, t + dur * 0.38);
+        gain.gain.linearRampToValueAtTime(Math.max(0.0002, peak * 0.8), t + dur * 0.68);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      } else if (shape === "pluck") {
+        const attack = Math.min(0.012, dur * 0.2);
+        gain.gain.exponentialRampToValueAtTime(peak, t + attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      } else {
+        const attack = Math.min(0.03, dur * 0.3);
+        gain.gain.exponentialRampToValueAtTime(peak, t + attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(dur, attack + 0.02));
+      }
       osc.connect(gain);
       gain.connect(spec.dest || sfxBus);
       osc.start(t);
-      osc.stop(t + dur + 0.04);
+      osc.stop(t + dur + 0.05);
+    }
+
+    function noiseAt(time, dur, peak, freq, dest) {
+      if (!ctx) return;
+      const length = Math.max(1, Math.floor(ctx.sampleRate * dur));
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.sin((Math.PI * i) / length);
+      }
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.Q.value = 0.8;
+      filter.frequency.setValueAtTime(Math.max(40, freq), time);
+      filter.frequency.exponentialRampToValueAtTime(Math.max(80, freq * 2.4), time + dur * 0.7);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), time + dur * 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest || musicBus);
+      source.start(time);
+      source.stop(time + dur + 0.02);
     }
 
     function noiseBurst(dur, peak, freq) {
@@ -1668,20 +1900,60 @@
     }
 
     function playStep(index, time) {
-      const note = MELODY[index];
-      if (note) {
-        const freq = midi(note);
-        tone({ at: time, freq: freq, dur: 0.26, type: "sine", gain: 0.09, dest: musicBus });
-        tone({ at: time, freq: freq * 2, dur: 0.14, type: "sine", gain: 0.028, dest: musicBus });
+      const lead = LEAD[index];
+      if (lead) {
+        const freq = midi(lead);
+        tone({ at: time, freq: freq, dur: 0.16, type: "sawtooth", gain: 0.045, dest: musicBus, shape: "pluck" });
+        tone({ at: time, freq: freq * 2.003, dur: 0.09, type: "square", gain: 0.016, dest: musicBus, shape: "pluck" });
       }
-      const bassNote = BASS[index];
-      if (bassNote) {
-        tone({ at: time, freq: midi(bassNote), dur: 0.7, type: "triangle", gain: 0.07, dest: musicBus });
+      const bass = BASS[index];
+      if (bass) {
+        tone({ at: time, freq: midi(bass), dur: 0.14, type: "square", gain: 0.07, dest: musicBus, shape: "pluck" });
+        tone({ at: time, freq: midi(bass) * 2, dur: 0.08, type: "triangle", gain: 0.03, dest: musicBus, shape: "pluck" });
+      }
+      const glide = GLIDE[index];
+      if (glide) {
+        const dur = STEP_SEC * 7.2;
+        tone({
+          at: time,
+          freq: midi(glide[0]),
+          to: midi(glide[1]),
+          dur: dur,
+          type: "sine",
+          gain: 0.045,
+          dest: musicBus,
+          shape: "swell"
+        });
+        tone({
+          at: time,
+          freq: midi(glide[0]) * 1.006,
+          to: midi(glide[1]) * 1.006,
+          dur: dur,
+          type: "sine",
+          gain: 0.02,
+          dest: musicBus,
+          shape: "swell"
+        });
+      }
+      if (index === 0 || index === 16) {
+        const root = index === 0 ? midi(50) : midi(46);
+        tone({ at: time, freq: root, dur: STEP_SEC * 6, type: "square", gain: 0.02, dest: musicBus, shape: "swell" });
+        tone({ at: time, freq: root * 1.5, dur: STEP_SEC * 6, type: "sine", gain: 0.014, dest: musicBus, shape: "swell" });
+      }
+      if (index === 16) {
+        tone({ at: time, freq: midi(88), dur: 0.45, type: "sine", gain: 0.04, dest: musicBus, shape: "pluck" });
+        tone({ at: time, freq: midi(91), dur: 0.32, type: "triangle", gain: 0.02, dest: musicBus, shape: "pluck" });
+      }
+      if (index === 4) {
+        tone({ at: time, freq: 196, to: 220, dur: 1.15, type: "sine", gain: 0.04, dest: musicBus, shape: "swell" });
+        tone({ at: time, freq: 294, to: 311, dur: 1.15, type: "sine", gain: 0.025, dest: musicBus, shape: "swell" });
+        tone({ at: time, freq: 392, to: 370, dur: 1.15, type: "sine", gain: 0.018, dest: musicBus, shape: "swell" });
+        noiseAt(time, 0.9, 0.03, 280, musicBus);
       }
     }
 
     function scheduleSlice() {
-      if (!musicOn || !ctx) return;
+      if (!musicOn || musicSuspended || !ctx) return;
       if (nextNoteTime < ctx.currentTime - 0.05) nextNoteTime = ctx.currentTime + 0.05;
       const horizon = ctx.currentTime + 0.28;
       while (nextNoteTime < horizon) {
@@ -1696,10 +1968,10 @@
       const t = ctx.currentTime;
       drone = ctx.createOscillator();
       drone.type = "sine";
-      drone.frequency.value = 110;
+      drone.frequency.value = 73.4;
       droneGain = ctx.createGain();
       droneGain.gain.setValueAtTime(0.0001, t);
-      droneGain.gain.exponentialRampToValueAtTime(0.035, t + 0.45);
+      droneGain.gain.exponentialRampToValueAtTime(0.04, t + 0.6);
       drone.connect(droneGain);
       droneGain.connect(musicBus);
       drone.start(t);
@@ -1721,7 +1993,7 @@
     }
 
     function startMusic() {
-      if (musicOn || muted || !ctx) return;
+      if (musicOn || muted || !ctx || musicSuspended) return;
       musicOn = true;
       nextNoteTime = ctx.currentTime + 0.08;
       stepIndex = 0;
@@ -1737,6 +2009,45 @@
         musicTimer = null;
       }
       stopDrone();
+    }
+
+    function pauseMusic() {
+      if (musicSuspended) return;
+      musicSuspended = true;
+      if (musicTimer) {
+        clearInterval(musicTimer);
+        musicTimer = null;
+      }
+      stopDrone();
+      if (ctx && musicBus) {
+        const t = ctx.currentTime;
+        try {
+          musicBus.gain.cancelScheduledValues(t);
+          musicBus.gain.setValueAtTime(Math.max(0.0001, musicBus.gain.value), t);
+          musicBus.gain.linearRampToValueAtTime(0.0001, t + 0.08);
+        } catch (_) {}
+      }
+    }
+
+    function resumeMusic() {
+      const wasHeld = musicSuspended;
+      musicSuspended = false;
+      if (!wasHeld && musicOn) return;
+      if (muted || !unlocked || !ctx) return;
+      if (musicBus) {
+        const t = ctx.currentTime;
+        musicBus.gain.cancelScheduledValues(t);
+        musicBus.gain.setValueAtTime(0.0001, t);
+        musicBus.gain.linearRampToValueAtTime(0.5, t + 0.16);
+      }
+      if (!musicOn) {
+        startMusic();
+        return;
+      }
+      if (nextNoteTime < ctx.currentTime + 0.05) nextNoteTime = ctx.currentTime + 0.06;
+      startDrone();
+      scheduleSlice();
+      if (!musicTimer) musicTimer = setInterval(scheduleSlice, 90);
     }
 
     function persistMute() {
@@ -1759,51 +2070,52 @@
 
     function click() {
       if (!canPlay()) return;
-      tone({ freq: 520, to: 760, dur: 0.05, type: "sine", gain: 0.07 });
+      tone({ freq: 330, to: 196, dur: 0.05, type: "triangle", gain: 0.06, shape: "pluck" });
     }
 
     function catchGhost(gold) {
       if (!canPlay()) return;
       if (gold) {
         const now = ctx.currentTime;
-        tone({ freq: 784, dur: 0.2, type: "sine", gain: 0.16 });
-        tone({ at: now + 0.07, freq: 1175, dur: 0.22, type: "sine", gain: 0.11 });
-        tone({ at: now + 0.12, freq: 1568, dur: 0.26, type: "triangle", gain: 0.055 });
+        tone({ freq: 659, dur: 0.16, type: "triangle", gain: 0.13, shape: "pluck" });
+        tone({ at: now + 0.07, freq: 784, dur: 0.18, type: "sine", gain: 0.1, shape: "pluck" });
+        tone({ at: now + 0.13, freq: 1046, dur: 0.24, type: "sine", gain: 0.06, shape: "pluck" });
         return;
       }
-      tone({ freq: 620, to: 980, dur: 0.1, type: "sine", gain: 0.16 });
-      tone({ freq: 1240, dur: 0.08, type: "triangle", gain: 0.045 });
+      tone({ freq: 494, to: 370, dur: 0.12, type: "triangle", gain: 0.14, shape: "pluck" });
+      tone({ freq: 247, dur: 0.1, type: "sine", gain: 0.05, shape: "pluck" });
     }
 
     function bomb() {
       if (!canPlay()) return;
-      tone({ freq: 196, to: 52, dur: 0.28, type: "triangle", gain: 0.16 });
-      tone({ freq: 90, to: 40, dur: 0.3, type: "sine", gain: 0.12 });
-      noiseBurst(0.16, 0.1, 420);
+      tone({ freq: 155, to: 46, dur: 0.32, type: "sawtooth", gain: 0.1, shape: "pluck" });
+      tone({ freq: 185, to: 52, dur: 0.28, type: "square", gain: 0.05, shape: "pluck" });
+      noiseBurst(0.2, 0.11, 320);
     }
 
     function combo(n) {
       if (!canPlay()) return;
-      const base = 540 + Math.min(n, 8) * 36;
-      tone({ freq: base, to: base * 1.45, dur: 0.09, type: "triangle", gain: 0.06 });
+      const base = 392 + Math.min(n, 8) * 20;
+      tone({ freq: base, to: base * 1.5, dur: 0.1, type: "triangle", gain: 0.055, shape: "pluck" });
       if (n === 3 || n === 5 || n >= 8) {
         const now = ctx.currentTime;
-        tone({ at: now + 0.06, freq: base * 1.25, dur: 0.14, type: "sine", gain: 0.055 });
-        tone({ at: now + 0.12, freq: base * 1.5, dur: 0.16, type: "sine", gain: 0.045 });
+        tone({ at: now + 0.06, freq: base * 1.2, dur: 0.14, type: "sine", gain: 0.05, shape: "pluck" });
+        tone({ at: now + 0.12, freq: base * 1.5, dur: 0.18, type: "sine", gain: 0.04, shape: "pluck" });
       }
     }
 
     function gameOver() {
       if (!canPlay()) return;
-      const notes = [659.25, 523.25, 392, 329.63];
+      const notes = [587.33, 466.16, 415.3, 311.13];
       const now = ctx.currentTime;
       for (let i = 0; i < notes.length; i++) {
         tone({
-          at: now + i * 0.16,
+          at: now + i * 0.18,
           freq: notes[i],
-          dur: 0.32,
+          dur: 0.36,
           type: "triangle",
-          gain: 0.09
+          gain: 0.08,
+          shape: "pluck"
         });
       }
     }
@@ -1821,31 +2133,16 @@
       master.gain.setValueAtTime(master.gain.value, t);
       master.gain.linearRampToValueAtTime(muted ? 0 : 0.9, t + 0.04);
       if (muted) {
-        resumeMusicOnShow = false;
         stopMusic();
         return;
       }
-      startMusic();
-      tone({ at: t + 0.05, freq: 520, to: 760, dur: 0.05, type: "sine", gain: 0.07 });
+      if (!musicSuspended) startMusic();
+      tone({ at: t + 0.05, freq: 330, to: 196, dur: 0.05, type: "triangle", gain: 0.06, shape: "pluck" });
     }
 
     function isMuted() {
       return muted;
     }
-
-    document.addEventListener("visibilitychange", function () {
-      if (document.hidden) {
-        if (musicOn) {
-          stopMusic();
-          resumeMusicOnShow = true;
-        }
-        return;
-      }
-      if (resumeMusicOnShow) {
-        resumeMusicOnShow = false;
-        if (!muted && unlocked) startMusic();
-      }
-    });
 
     return {
       unlock: unlock,
@@ -1855,7 +2152,9 @@
       combo: combo,
       gameOver: gameOver,
       toggleMute: toggleMute,
-      isMuted: isMuted
+      isMuted: isMuted,
+      pauseMusic: pauseMusic,
+      resumeMusic: resumeMusic
     };
   })();
 
@@ -1897,11 +2196,59 @@
     audio.toggleMute();
   });
 
+  document.getElementById("btn-pause").addEventListener("click", function () {
+    audio.click();
+    pauseRound("menu");
+  });
+  document.getElementById("btn-quit").addEventListener("click", function () {
+    audio.click();
+    pauseRound("confirm");
+  });
+  document.getElementById("btn-resume").addEventListener("click", function () {
+    audio.resumeMusic();
+    audio.click();
+    resumeRound();
+  });
+  document.getElementById("btn-pause-quit").addEventListener("click", function () {
+    audio.click();
+    showPauseOverlay("confirm");
+  });
+  document.getElementById("btn-quit-no").addEventListener("click", function () {
+    audio.resumeMusic();
+    audio.click();
+    resumeRound();
+  });
+  document.getElementById("btn-quit-yes").addEventListener("click", function () {
+    audio.click();
+    quitRound();
+  });
+
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && !boardScreen.classList.contains("hidden")) {
+    if (event.key !== "Escape") return;
+    if (!boardScreen.classList.contains("hidden")) {
       event.preventDefault();
       closeBoard();
+      return;
     }
+    if (state === "playing") {
+      event.preventDefault();
+      pauseRound("menu");
+      return;
+    }
+    if (state !== "paused") return;
+    event.preventDefault();
+    if (!quitConfirm.classList.contains("hidden")) showPauseOverlay("menu");
+    else resumeRound();
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      if (state === "playing") pauseRound("auto");
+      else if (state !== "paused") audio.pauseMusic();
+      return;
+    }
+    if (state === "paused") return;
+    audio.resumeMusic();
   });
 
   updateMuteButton();
