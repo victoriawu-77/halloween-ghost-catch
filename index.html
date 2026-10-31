@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
   <meta name="theme-color" content="#1a0a2e" />
-  <meta name="description" content="Catch the Ghosts — a cute Halloween mini-game. Tap floating ghosts, dodge the pumpkins, chase the combo!" />
+  <meta name="description" content="Catch the Ghosts — a cute Halloween mini-game. Tap floating ghosts, dodge the pumpkins, chase the combo, and climb the local leaderboard." />
   <meta property="og:title" content="Catch the Ghosts" />
-  <meta property="og:description" content="A cute Halloween ghost-catching mini-game. 60 seconds. Catch ghosts, dodge pumpkins, build combos!" />
+  <meta property="og:description" content="A cute Halloween ghost-catching mini-game. 60 seconds. Catch ghosts, dodge pumpkins, build combos, and chase the local leaderboard." />
   <meta property="og:type" content="website" />
   <title>Catch the Ghosts</title>
   <style>
@@ -24,6 +24,8 @@
       --panel: rgba(26, 10, 46, 0.88);
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -84,7 +86,7 @@
     /* Moon */
     .moon {
       position: absolute;
-      top: max(28px, calc(var(--safe-top) + 18px));
+      top: max(72px, calc(var(--safe-top) + 64px));
       right: 8%;
       width: 72px;
       height: 72px;
@@ -166,7 +168,11 @@
       right: 0;
       z-index: 20;
       display: none;
-      padding: calc(var(--safe-top) + 12px) 16px 8px;
+      padding:
+        calc(var(--safe-top) + 12px)
+        calc(var(--safe-right) + 10px)
+        8px
+        calc(var(--safe-left) + 64px);
       pointer-events: none;
     }
     #hud.visible { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
@@ -177,11 +183,11 @@
       -webkit-backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 140, 66, 0.28);
       border-radius: 999px;
-      padding: 8px 16px;
+      padding: 8px 12px;
       font-size: 15px;
       font-weight: 700;
       letter-spacing: 0.02em;
-      min-width: 88px;
+      min-width: 72px;
       text-align: center;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
     }
@@ -362,15 +368,36 @@
       z-index: 50;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: calc(var(--safe-top) + 24px) 24px calc(var(--safe-bottom) + 32px);
+      padding-top: calc(var(--safe-top) + 76px);
       text-align: center;
       background: rgba(8, 3, 16, 0.55);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
+      overflow: hidden;
     }
     .screen.hidden { display: none; }
+    .screen:focus { outline: none; }
+
+    .screen-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding:
+        8px
+        calc(var(--safe-right) + 24px)
+        calc(var(--safe-bottom) + 24px)
+        calc(var(--safe-left) + 24px);
+    }
+    .screen-scroll::before,
+    .screen-scroll::after {
+      content: "";
+      flex: 1 0 0px;
+    }
 
     .screen-card {
       background: var(--panel);
@@ -379,6 +406,7 @@
       padding: 36px 28px 32px;
       max-width: 380px;
       width: 100%;
+      flex-shrink: 0;
       box-shadow:
         0 20px 60px rgba(0, 0, 0, 0.5),
         0 0 0 1px rgba(255, 255, 255, 0.04) inset,
@@ -430,6 +458,14 @@
     .howto .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
     .howto .ico { font-size: 18px; width: 28px; text-align: center; flex-shrink: 0; }
 
+    .best-line {
+      font-size: 13px;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.72);
+      margin: -8px 0 16px;
+    }
+    .best-line strong { color: var(--gold); font-weight: 800; }
+
     .btn {
       display: inline-flex;
       align-items: center;
@@ -465,6 +501,61 @@
       outline: 3px solid var(--gold);
       outline-offset: 3px;
     }
+
+    .btn-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .btn-stack .btn { width: 100%; }
+
+    .btn.btn-ghost {
+      min-height: 48px;
+      padding: 12px 24px;
+      font-size: 15px;
+      color: var(--gold);
+      background: transparent;
+      border: 2px solid rgba(255, 213, 106, 0.5);
+      box-shadow: none;
+    }
+    .btn.btn-ghost:hover { transform: translateY(-1px); }
+    .btn.btn-ghost:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+
+    .mute-btn {
+      position: absolute;
+      z-index: 60;
+      top: calc(var(--safe-top) + 12px);
+      left: calc(var(--safe-left) + 12px);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 140, 66, 0.4);
+      background: var(--panel);
+      color: var(--hud);
+      font-size: 20px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      -webkit-appearance: none;
+      appearance: none;
+      padding: 0;
+    }
+    .mute-btn[aria-pressed="true"] {
+      border-color: rgba(255, 255, 255, 0.22);
+      color: rgba(255, 255, 255, 0.55);
+    }
+    .mute-btn:focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+    .mute-btn:active { transform: scale(0.96); }
 
     .end-score {
       font-size: clamp(48px, 14vw, 64px);
@@ -508,6 +599,146 @@
       margin-bottom: 20px;
     }
 
+    .save-panel { margin-bottom: 16px; }
+    .save-prompt {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+    .save-label {
+      display: block;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-soft);
+      margin-bottom: 8px;
+    }
+    .save-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .name-input {
+      flex: 1;
+      min-width: 0;
+      height: 48px;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 140, 66, 0.45);
+      background: rgba(0, 0, 0, 0.28);
+      color: #fff;
+      font: 700 16px/1.2 "Segoe UI", system-ui, -apple-system, sans-serif;
+      padding: 0 16px;
+      text-align: left;
+      user-select: text;
+      -webkit-user-select: text;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .name-input::placeholder { color: rgba(255, 255, 255, 0.4); font-weight: 600; }
+    .name-input:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(255, 213, 106, 0.25);
+    }
+    .btn.btn-save {
+      min-width: 0;
+      min-height: 48px;
+      padding: 12px 18px;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .text-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 8px;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.62);
+      font: 600 14px/1 "Segoe UI", system-ui, sans-serif;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+      padding: 6px 8px;
+    }
+    .text-btn:focus-visible {
+      outline: 2px solid var(--gold);
+      outline-offset: 3px;
+      border-radius: 6px;
+    }
+    .saved-note {
+      font-size: 14px;
+      font-weight: 700;
+      color: #b8ff9a;
+      margin-bottom: 14px;
+    }
+
+    .board-list {
+      list-style: none;
+      margin: 0 0 18px;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+    }
+    .board-row {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      padding: 8px 12px;
+    }
+    .board-row.is-you {
+      border-color: rgba(255, 213, 106, 0.55);
+      background: rgba(255, 213, 106, 0.12);
+    }
+    .board-rank {
+      font-weight: 800;
+      font-size: 15px;
+      color: var(--accent-soft);
+      text-align: center;
+    }
+    .board-row:nth-child(1) .board-rank { color: var(--gold); }
+    .board-row:nth-child(2) .board-rank { color: #ececf4; }
+    .board-row:nth-child(3) .board-rank { color: #e0a36a; }
+    .board-name {
+      font-weight: 700;
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .board-meta {
+      margin-top: 2px;
+      font-size: 11px;
+      letter-spacing: 0.02em;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .board-score {
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--gold);
+      font-size: 16px;
+    }
+    .board-empty {
+      font-size: 14px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.72);
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 14px;
+      padding: 18px 14px;
+      margin-bottom: 18px;
+    }
+
+    .hidden { display: none !important; }
+
     /* Screen shake on bomb */
     #app.shake {
       animation: appShake 0.4s ease-out;
@@ -522,11 +753,36 @@
 
     @media (prefers-reduced-motion: reduce) {
       .star, .bat, .title-emoji, .entity .sprite, .entity.ghost-gold::before,
-      #combo-banner.show, .score-pop, .spark, #app.shake, .hud-pill.timer.urgent {
+      #combo-banner.show, .score-pop, .spark, #app.shake, .hud-pill.timer.urgent,
+      .mute-btn:active {
         animation: none !important;
       }
+      .mute-btn:active { transform: none; }
       .entity.ghost-gold::before { opacity: 0.7; }
       #combo-banner.show { opacity: 1; transform: translateX(-50%) scale(1); }
+    }
+
+    @media (max-height: 720px) {
+      .screen-scroll {
+        padding-bottom: calc(var(--safe-bottom) + 12px);
+      }
+      .screen-card { padding: 20px 16px 16px; }
+      .title-emoji { font-size: 40px; margin-bottom: 2px; }
+      h1 { margin-bottom: 6px; }
+      .tagline { font-size: 14px; margin-bottom: 10px; }
+      .howto {
+        margin-bottom: 12px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .best-line { margin: 0 0 10px; }
+      .btn { min-height: 46px; padding: 10px 20px; font-size: 16px; }
+      .btn.btn-ghost { min-height: 42px; font-size: 14px; }
+      .end-stats { margin-bottom: 12px; }
+      .rank-badge { margin-bottom: 10px; }
+      .save-panel { margin-bottom: 10px; }
+      .end-score { font-size: 48px; }
     }
 
     @media (min-width: 600px) {
@@ -539,6 +795,9 @@
 </head>
 <body>
   <div id="app">
+    <button type="button" id="btn-mute" class="mute-btn" aria-pressed="false" aria-label="Mute sound">
+      <span id="mute-icon" aria-hidden="true">🔊</span>
+    </button>
     <div class="stars" id="stars" aria-hidden="true"></div>
     <div class="moon" aria-hidden="true"></div>
     <div class="bats" id="bats" aria-hidden="true"></div>
@@ -555,6 +814,7 @@
 
     <!-- Start screen -->
     <div id="start-screen" class="screen" role="dialog" aria-labelledby="game-title">
+      <div class="screen-scroll">
       <div class="screen-card">
         <div class="title-emoji" aria-hidden="true">👻🎃</div>
         <h1 id="game-title">Catch the Ghosts</h1>
@@ -566,12 +826,18 @@
           <div class="row"><span class="ico">⚡</span><span><strong>Combo</strong> — catch fast for multipliers</span></div>
           <div class="row"><span class="ico">⏱</span><span><strong>60 seconds</strong> — how many can you catch?</span></div>
         </div>
-        <button type="button" class="btn" id="btn-start">Play</button>
+        <p class="best-line hidden" id="best-line"></p>
+        <div class="btn-stack">
+          <button type="button" class="btn" id="btn-start">Play</button>
+          <button type="button" class="btn btn-ghost" id="btn-open-board">Leaderboard</button>
+        </div>
+      </div>
       </div>
     </div>
 
     <!-- End screen -->
     <div id="end-screen" class="screen hidden" role="dialog" aria-labelledby="end-title">
+      <div class="screen-scroll">
       <div class="screen-card">
         <div class="title-emoji" aria-hidden="true">🏆</div>
         <h1 id="end-title">Time's Up!</h1>
@@ -582,7 +848,39 @@
           <div>Best streak<strong id="best-streak">0</strong></div>
           <div>Ghosts caught<strong id="ghosts-caught">0</strong></div>
         </div>
-        <button type="button" class="btn" id="btn-again">Play Again</button>
+        <div id="save-panel" class="save-panel hidden">
+          <p class="save-prompt" id="save-prompt">You made the top 10!</p>
+          <form id="save-form" class="save-form" autocomplete="off" novalidate>
+            <label class="save-label" for="player-name">Your name</label>
+            <div class="save-row">
+              <input id="player-name" class="name-input" type="text" maxlength="16" autocomplete="nickname" autocapitalize="words" enterkeyhint="done" spellcheck="false" placeholder="Ghost Hunter" />
+              <button type="submit" class="btn btn-save" id="btn-save">Save</button>
+            </div>
+          </form>
+          <button type="button" class="text-btn" id="btn-skip">Skip</button>
+        </div>
+        <p id="saved-note" class="saved-note hidden" role="status"></p>
+        <div class="btn-stack">
+          <button type="button" class="btn" id="btn-again">Play Again</button>
+          <button type="button" class="btn btn-ghost" id="btn-end-board">Leaderboard</button>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div id="board-screen" class="screen hidden" role="dialog" aria-labelledby="board-title" tabindex="-1">
+      <div class="screen-scroll">
+      <div class="screen-card">
+        <div class="title-emoji" aria-hidden="true">🏆</div>
+        <h1 id="board-title">Leaderboard</h1>
+        <p class="tagline">Top 10 on this device. Scores stay in this browser.</p>
+        <ol class="board-list hidden" id="board-list" aria-label="Top scores"></ol>
+        <p class="board-empty" id="board-empty">No scores yet. Play a round and claim the top spot!</p>
+        <div class="btn-stack">
+          <button type="button" class="btn btn-ghost" id="btn-board-back">Back</button>
+        </div>
+      </div>
       </div>
     </div>
   </div>
@@ -610,7 +908,18 @@
   const comboBanner = document.getElementById("combo-banner");
   const startScreen = document.getElementById("start-screen");
   const endScreen = document.getElementById("end-screen");
+  const boardScreen = document.getElementById("board-screen");
   const app = document.getElementById("app");
+  const savePanel = document.getElementById("save-panel");
+  const savePrompt = document.getElementById("save-prompt");
+  const saveForm = document.getElementById("save-form");
+  const nameInput = document.getElementById("player-name");
+  const savedNote = document.getElementById("saved-note");
+  const bestLine = document.getElementById("best-line");
+  const boardList = document.getElementById("board-list");
+  const boardEmpty = document.getElementById("board-empty");
+  const muteBtn = document.getElementById("btn-mute");
+  const muteIcon = document.getElementById("mute-icon");
 
   let state = "start"; // start | playing | end
   let score = 0;
@@ -626,6 +935,17 @@
   let rafId = null;
   let lastTs = 0;
   let reduceMotion = false;
+  let pendingScore = null;
+  let lastSavedId = "";
+  let boardFrom = "start";
+  let boardReturnFocus = null;
+
+  const BOARD_KEY = "catch-ghosts-leaderboard-v1";
+  const NAME_KEY = "catch-ghosts-player-name";
+  const MUTE_KEY = "catch-ghosts-muted";
+  const MAX_BOARD = 10;
+  const NAME_MAX = 16;
+  const DEFAULT_NAME = "Ghost Hunter";
 
   try {
     reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -833,6 +1153,7 @@
       score = Math.max(0, score + SCORE_BOMB);
       updateHud();
       showScorePop(x, y, String(SCORE_BOMB), "minus");
+      audio.bomb();
       removeEntity(ent, "bomb-hit");
       app.classList.remove("shake");
       void app.offsetWidth;
@@ -864,7 +1185,11 @@
       ent.type === "gold" ? "gold" : "plus"
     );
     sparks(x, y, ent.type === "gold" ? "#FFD56A" : "#E8DFFF");
-    if (combo >= 2) flashCombo(combo);
+    audio.catchGhost(ent.type === "gold");
+    if (combo >= 2) {
+      flashCombo(combo);
+      audio.combo(combo);
+    }
     removeEntity(ent, "catching");
   }
 
@@ -946,8 +1271,14 @@
     updateHud();
 
     state = "playing";
+    pendingScore = null;
+    comboBanner.classList.remove("show");
+    comboBanner.textContent = "";
+    savePanel.classList.add("hidden");
+    savedNote.classList.add("hidden");
     startScreen.classList.add("hidden");
     endScreen.classList.add("hidden");
+    boardScreen.classList.add("hidden");
     hud.classList.add("visible");
     playfield.classList.remove("inactive");
 
@@ -972,17 +1303,609 @@
     if (rafId) cancelAnimationFrame(rafId);
     playfield.classList.add("inactive");
     hud.classList.remove("visible");
+    comboBanner.classList.remove("show");
+    comboBanner.textContent = "";
     clearEntities();
 
     document.getElementById("final-score").textContent = String(score);
     document.getElementById("best-streak").textContent = String(bestStreak);
     document.getElementById("ghosts-caught").textContent = String(ghostsCaught);
     document.getElementById("rank-badge").textContent = rankFor(score);
+
+    const board = loadBoard();
+    const madeBoard = scoreQualifies(score, board);
+    savedNote.classList.add("hidden");
+    savedNote.textContent = "";
+    if (madeBoard) {
+      pendingScore = { score: score, combo: bestStreak, at: Date.now() };
+      const place = prospectiveRank(score, board);
+      savePrompt.textContent = place === 1
+        ? "New best score!"
+        : "You made the top 10 — #" + place + "!";
+      nameInput.value = loadName();
+      savePanel.classList.remove("hidden");
+    } else {
+      pendingScore = null;
+      savePanel.classList.add("hidden");
+    }
+
+    audio.gameOver();
     endScreen.classList.remove("hidden");
   }
 
-  document.getElementById("btn-start").addEventListener("click", startRound);
-  document.getElementById("btn-again").addEventListener("click", startRound);
+  /* ---- Leaderboard (this browser only) ---- */
+  function sanitizeName(raw) {
+    let s = String(raw == null ? "" : raw);
+    s = s.replace(/<[^>]*>/g, "");
+    s = s.replace(/[\u0000-\u001F\u007F]/g, "");
+    s = s.replace(/[<>&]/g, "");
+    try {
+      s = s.replace(/[^\p{L}\p{N} '!.-]/gu, "");
+    } catch (_) {
+      s = s.replace(/[^A-Za-z0-9 '!.-]/g, "");
+    }
+    s = s.replace(/\s+/g, " ").trim();
+    s = Array.from(s).slice(0, NAME_MAX).join("").trim();
+    return s || DEFAULT_NAME;
+  }
+
+  function loadName() {
+    try {
+      const saved = localStorage.getItem(NAME_KEY);
+      return saved ? sanitizeName(saved) : DEFAULT_NAME;
+    } catch (_) {
+      return DEFAULT_NAME;
+    }
+  }
+
+  function normalizeEntry(entry) {
+    if (!entry || typeof entry !== "object") return null;
+    const value = Number(entry.score);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    const combo = Number(entry.combo);
+    const at = Number(entry.at);
+    return {
+      id: typeof entry.id === "string" ? entry.id : "",
+      name: sanitizeName(entry.name),
+      score: Math.floor(value),
+      combo: Number.isFinite(combo) ? Math.max(0, Math.floor(combo)) : 0,
+      at: Number.isFinite(at) ? at : 0
+    };
+  }
+
+  function sortBoard(list) {
+    return list.slice().sort(function (a, b) {
+      return b.score - a.score || (b.at || 0) - (a.at || 0);
+    });
+  }
+
+  function loadBoard() {
+    try {
+      const raw = localStorage.getItem(BOARD_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const clean = [];
+      for (let i = 0; i < parsed.length; i++) {
+        const entry = normalizeEntry(parsed[i]);
+        if (entry) clean.push(entry);
+      }
+      return sortBoard(clean).slice(0, MAX_BOARD);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writeBoard(list) {
+    localStorage.setItem(BOARD_KEY, JSON.stringify(list.slice(0, MAX_BOARD)));
+  }
+
+  function scoreQualifies(value, board) {
+    if (!Number.isFinite(value) || value <= 0) return false;
+    if (board.length < MAX_BOARD) return true;
+    return value >= board[board.length - 1].score;
+  }
+
+  function prospectiveRank(value, board) {
+    let place = 1;
+    for (let i = 0; i < board.length; i++) {
+      if (board[i].score > value) place += 1;
+      else break;
+    }
+    return place;
+  }
+
+  function formatScore(value) {
+    try {
+      return Number(value).toLocaleString("en-US");
+    } catch (_) {
+      return String(value);
+    }
+  }
+
+  function formatWhen(ts) {
+    const date = new Date(ts);
+    if (Number.isNaN(date.getTime()) || !ts) return "";
+    try {
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function refreshBestLine() {
+    const board = loadBoard();
+    if (!board.length) {
+      bestLine.classList.add("hidden");
+      bestLine.textContent = "";
+      return;
+    }
+    const top = board[0];
+    bestLine.classList.remove("hidden");
+    bestLine.replaceChildren();
+    bestLine.append("Best on this device: ");
+    const strong = document.createElement("strong");
+    strong.textContent = formatScore(top.score);
+    bestLine.appendChild(strong);
+    bestLine.append(" · " + top.name);
+  }
+
+  function renderBoard() {
+    const board = loadBoard();
+    boardList.replaceChildren();
+    const empty = board.length === 0;
+    boardEmpty.classList.toggle("hidden", !empty);
+    boardList.classList.toggle("hidden", empty);
+    for (let i = 0; i < board.length; i++) {
+      const entry = board[i];
+      const row = document.createElement("li");
+      row.className = "board-row" + (entry.id && entry.id === lastSavedId ? " is-you" : "");
+
+      const rank = document.createElement("span");
+      rank.className = "board-rank";
+      rank.textContent = String(i + 1);
+
+      const mid = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "board-name";
+      name.textContent = entry.name;
+      mid.appendChild(name);
+
+      const bits = [];
+      if (entry.combo > 1) bits.push("×" + entry.combo + " combo");
+      const when = formatWhen(entry.at);
+      if (when) bits.push(when);
+      if (bits.length) {
+        const meta = document.createElement("div");
+        meta.className = "board-meta";
+        meta.textContent = bits.join(" · ");
+        mid.appendChild(meta);
+      }
+
+      const points = document.createElement("span");
+      points.className = "board-score";
+      points.textContent = formatScore(entry.score);
+
+      row.appendChild(rank);
+      row.appendChild(mid);
+      row.appendChild(points);
+      boardList.appendChild(row);
+    }
+  }
+
+  function openBoard(from, opener) {
+    audio.click();
+    boardFrom = from;
+    boardReturnFocus = opener || null;
+    renderBoard();
+    startScreen.classList.add("hidden");
+    endScreen.classList.add("hidden");
+    boardScreen.classList.remove("hidden");
+    const scroller = boardScreen.querySelector(".screen-scroll");
+    if (scroller) scroller.scrollTop = 0;
+    boardScreen.focus({ preventScroll: true });
+  }
+
+  function closeBoard() {
+    audio.click();
+    boardScreen.classList.add("hidden");
+    if (boardFrom === "end" && state === "end") endScreen.classList.remove("hidden");
+    else startScreen.classList.remove("hidden");
+    if (boardReturnFocus) boardReturnFocus.focus();
+  }
+
+  function dismissSave() {
+    pendingScore = null;
+    savePanel.classList.add("hidden");
+  }
+
+  function savePending(event) {
+    if (event) event.preventDefault();
+    if (!pendingScore) return;
+    audio.click();
+    const name = sanitizeName(nameInput.value);
+    const entry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name: name,
+      score: pendingScore.score,
+      combo: pendingScore.combo,
+      at: pendingScore.at
+    };
+    let board;
+    try {
+      board = sortBoard(loadBoard().concat([entry])).slice(0, MAX_BOARD);
+      writeBoard(board);
+      localStorage.setItem(NAME_KEY, name);
+    } catch (_) {
+      pendingScore = null;
+      savePanel.classList.add("hidden");
+      savedNote.textContent = "Couldn't save on this device. You can still play again.";
+      savedNote.classList.remove("hidden");
+      return;
+    }
+    pendingScore = null;
+    lastSavedId = entry.id;
+    savePanel.classList.add("hidden");
+    const place = board.findIndex(function (row) { return row.id === entry.id; }) + 1;
+    savedNote.textContent = place > 0
+      ? "Saved! You're #" + place + ", " + name + "."
+      : "Saved, " + name + ".";
+    savedNote.classList.remove("hidden");
+    refreshBestLine();
+  }
+
+  /* ---- Audio (Web Audio API, generated in the browser) ---- */
+  const audio = (function () {
+    const MELODY = [
+      69, 72, 76, 81, 79, 76, 72, 69,
+      65, 69, 72, 76, 74, 72, 69, 65,
+      64, 67, 71, 76, 74, 71, 67, 64,
+      69, 76, 72, 69, 67, 64, 65, 69
+    ];
+    const BASS = { 0: 45, 8: 41, 16: 40, 24: 45 };
+    const LOOP_STEPS = MELODY.length;
+    const STEP_SEC = 60 / 80 / 2;
+
+    let ctx = null;
+    let master = null;
+    let musicBus = null;
+    let sfxBus = null;
+    let drone = null;
+    let droneGain = null;
+    let muted = false;
+    let unlocked = false;
+    let failed = false;
+    let musicOn = false;
+    let musicTimer = null;
+    let nextNoteTime = 0;
+    let stepIndex = 0;
+    let resumeMusicOnShow = false;
+
+    try {
+      muted = localStorage.getItem(MUTE_KEY) === "1";
+    } catch (_) {}
+
+    function midi(note) {
+      return 440 * Math.pow(2, (note - 69) / 12);
+    }
+
+    function ensure() {
+      if (failed) return false;
+      if (ctx) return true;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) {
+        failed = true;
+        return false;
+      }
+      try {
+        ctx = new Ctx();
+        master = ctx.createGain();
+        master.gain.value = muted ? 0 : 0.9;
+        master.connect(ctx.destination);
+
+        musicBus = ctx.createGain();
+        musicBus.gain.value = 0.72;
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = 2200;
+        filter.Q.value = 0.6;
+        musicBus.connect(filter);
+        filter.connect(master);
+
+        sfxBus = ctx.createGain();
+        sfxBus.gain.value = 0.85;
+        sfxBus.connect(master);
+        return true;
+      } catch (_) {
+        failed = true;
+        return false;
+      }
+    }
+
+    function tone(spec) {
+      if (!ctx) return;
+      const t = spec.at != null ? spec.at : ctx.currentTime;
+      const dur = spec.dur;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = spec.type || "sine";
+      const startFreq = Math.max(1, spec.freq);
+      osc.frequency.setValueAtTime(startFreq, t);
+      if (spec.to && spec.to !== spec.freq) {
+        osc.frequency.exponentialRampToValueAtTime(Math.max(1, spec.to), t + dur);
+      }
+      const peak = Math.max(0.0002, spec.gain);
+      const attack = Math.min(0.03, dur * 0.3);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(peak, t + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(dur, attack + 0.02));
+      osc.connect(gain);
+      gain.connect(spec.dest || sfxBus);
+      osc.start(t);
+      osc.stop(t + dur + 0.04);
+    }
+
+    function noiseBurst(dur, peak, freq) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const length = Math.max(1, Math.floor(ctx.sampleRate * dur));
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = freq || 480;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(Math.max(0.0002, peak), t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(sfxBus);
+      source.start(t);
+      source.stop(t + dur + 0.02);
+    }
+
+    function playStep(index, time) {
+      const note = MELODY[index];
+      if (note) {
+        const freq = midi(note);
+        tone({ at: time, freq: freq, dur: 0.26, type: "sine", gain: 0.09, dest: musicBus });
+        tone({ at: time, freq: freq * 2, dur: 0.14, type: "sine", gain: 0.028, dest: musicBus });
+      }
+      const bassNote = BASS[index];
+      if (bassNote) {
+        tone({ at: time, freq: midi(bassNote), dur: 0.7, type: "triangle", gain: 0.07, dest: musicBus });
+      }
+    }
+
+    function scheduleSlice() {
+      if (!musicOn || !ctx) return;
+      if (nextNoteTime < ctx.currentTime - 0.05) nextNoteTime = ctx.currentTime + 0.05;
+      const horizon = ctx.currentTime + 0.28;
+      while (nextNoteTime < horizon) {
+        playStep(stepIndex % LOOP_STEPS, nextNoteTime);
+        nextNoteTime += STEP_SEC;
+        stepIndex += 1;
+      }
+    }
+
+    function startDrone() {
+      if (!ctx || drone) return;
+      const t = ctx.currentTime;
+      drone = ctx.createOscillator();
+      drone.type = "sine";
+      drone.frequency.value = 110;
+      droneGain = ctx.createGain();
+      droneGain.gain.setValueAtTime(0.0001, t);
+      droneGain.gain.exponentialRampToValueAtTime(0.035, t + 0.45);
+      drone.connect(droneGain);
+      droneGain.connect(musicBus);
+      drone.start(t);
+    }
+
+    function stopDrone() {
+      if (!ctx || !drone) return;
+      const t = ctx.currentTime;
+      const old = drone;
+      const oldGain = droneGain;
+      drone = null;
+      droneGain = null;
+      try {
+        oldGain.gain.cancelScheduledValues(t);
+        oldGain.gain.setValueAtTime(Math.max(0.0001, oldGain.gain.value), t);
+        oldGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+        old.stop(t + 0.1);
+      } catch (_) {}
+    }
+
+    function startMusic() {
+      if (musicOn || muted || !ctx) return;
+      musicOn = true;
+      nextNoteTime = ctx.currentTime + 0.08;
+      stepIndex = 0;
+      startDrone();
+      scheduleSlice();
+      musicTimer = setInterval(scheduleSlice, 90);
+    }
+
+    function stopMusic() {
+      musicOn = false;
+      if (musicTimer) {
+        clearInterval(musicTimer);
+        musicTimer = null;
+      }
+      stopDrone();
+    }
+
+    function persistMute() {
+      try {
+        localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+      } catch (_) {}
+    }
+
+    function unlock() {
+      if (!ensure()) return;
+      const pending = ctx.resume();
+      if (pending && typeof pending.catch === "function") pending.catch(function () {});
+      unlocked = true;
+      if (!muted) startMusic();
+    }
+
+    function canPlay() {
+      return unlocked && !muted && ensure();
+    }
+
+    function click() {
+      if (!canPlay()) return;
+      tone({ freq: 520, to: 760, dur: 0.05, type: "sine", gain: 0.07 });
+    }
+
+    function catchGhost(gold) {
+      if (!canPlay()) return;
+      if (gold) {
+        const now = ctx.currentTime;
+        tone({ freq: 784, dur: 0.2, type: "sine", gain: 0.16 });
+        tone({ at: now + 0.07, freq: 1175, dur: 0.22, type: "sine", gain: 0.11 });
+        tone({ at: now + 0.12, freq: 1568, dur: 0.26, type: "triangle", gain: 0.055 });
+        return;
+      }
+      tone({ freq: 620, to: 980, dur: 0.1, type: "sine", gain: 0.16 });
+      tone({ freq: 1240, dur: 0.08, type: "triangle", gain: 0.045 });
+    }
+
+    function bomb() {
+      if (!canPlay()) return;
+      tone({ freq: 196, to: 52, dur: 0.28, type: "triangle", gain: 0.16 });
+      tone({ freq: 90, to: 40, dur: 0.3, type: "sine", gain: 0.12 });
+      noiseBurst(0.16, 0.1, 420);
+    }
+
+    function combo(n) {
+      if (!canPlay()) return;
+      const base = 540 + Math.min(n, 8) * 36;
+      tone({ freq: base, to: base * 1.45, dur: 0.09, type: "triangle", gain: 0.06 });
+      if (n === 3 || n === 5 || n >= 8) {
+        const now = ctx.currentTime;
+        tone({ at: now + 0.06, freq: base * 1.25, dur: 0.14, type: "sine", gain: 0.055 });
+        tone({ at: now + 0.12, freq: base * 1.5, dur: 0.16, type: "sine", gain: 0.045 });
+      }
+    }
+
+    function gameOver() {
+      if (!canPlay()) return;
+      const notes = [659.25, 523.25, 392, 329.63];
+      const now = ctx.currentTime;
+      for (let i = 0; i < notes.length; i++) {
+        tone({
+          at: now + i * 0.16,
+          freq: notes[i],
+          dur: 0.32,
+          type: "triangle",
+          gain: 0.09
+        });
+      }
+    }
+
+    function toggleMute() {
+      muted = !muted;
+      persistMute();
+      updateMuteButton();
+      if (!ensure()) return;
+      const pending = ctx.resume();
+      if (pending && typeof pending.catch === "function") pending.catch(function () {});
+      unlocked = true;
+      const t = ctx.currentTime;
+      master.gain.cancelScheduledValues(t);
+      master.gain.setValueAtTime(master.gain.value, t);
+      master.gain.linearRampToValueAtTime(muted ? 0 : 0.9, t + 0.04);
+      if (muted) {
+        resumeMusicOnShow = false;
+        stopMusic();
+        return;
+      }
+      startMusic();
+      tone({ at: t + 0.05, freq: 520, to: 760, dur: 0.05, type: "sine", gain: 0.07 });
+    }
+
+    function isMuted() {
+      return muted;
+    }
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) {
+        if (musicOn) {
+          stopMusic();
+          resumeMusicOnShow = true;
+        }
+        return;
+      }
+      if (resumeMusicOnShow) {
+        resumeMusicOnShow = false;
+        if (!muted && unlocked) startMusic();
+      }
+    });
+
+    return {
+      unlock: unlock,
+      click: click,
+      catchGhost: catchGhost,
+      bomb: bomb,
+      combo: combo,
+      gameOver: gameOver,
+      toggleMute: toggleMute,
+      isMuted: isMuted
+    };
+  })();
+
+  function updateMuteButton() {
+    const off = audio.isMuted();
+    muteBtn.setAttribute("aria-pressed", off ? "true" : "false");
+    muteBtn.setAttribute("aria-label", off ? "Unmute sound" : "Mute sound");
+    muteIcon.textContent = off ? "🔇" : "🔊";
+  }
+
+  nameInput.addEventListener("focus", function () {
+    nameInput.select();
+  });
+
+  saveForm.addEventListener("submit", savePending);
+  document.getElementById("btn-skip").addEventListener("click", function () {
+    audio.click();
+    dismissSave();
+  });
+
+  document.getElementById("btn-start").addEventListener("click", function () {
+    audio.unlock();
+    audio.click();
+    startRound();
+  });
+  document.getElementById("btn-again").addEventListener("click", function () {
+    audio.unlock();
+    audio.click();
+    startRound();
+  });
+  document.getElementById("btn-open-board").addEventListener("click", function () {
+    openBoard("start", document.getElementById("btn-open-board"));
+  });
+  document.getElementById("btn-end-board").addEventListener("click", function () {
+    openBoard("end", document.getElementById("btn-end-board"));
+  });
+  document.getElementById("btn-board-back").addEventListener("click", closeBoard);
+  muteBtn.addEventListener("click", function () {
+    audio.toggleMute();
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && !boardScreen.classList.contains("hidden")) {
+      event.preventDefault();
+      closeBoard();
+    }
+  });
+
+  updateMuteButton();
+  refreshBestLine();
 
   // prevent iOS double-tap zoom on playfield
   let lastTouchEnd = 0;
